@@ -1,0 +1,30 @@
+{
+  "name": "ahorrosserver",
+  "version": "1.0.0",
+  "description": "Servidor ahorros",
+  "main": "index.js",
+  "scripts": {
+    "start": "node .",
+    "dev": "nodemon ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/julianqp/ahorrosserver.git"
+  },
+  "author": "Julian Querol Polo",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/julianqp/ahorrosserver/issues"
+  },
+  "homepage": "https://github.com/julianqp/ahorrosserver#readme",
+  "devDependencies": {
+    "nodemon": "^2.0.4"
+  },
+  "dependencies": {
+    "apollo-server": "^2.16.1",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^8.2.0",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.9.28"
+  }
+}
