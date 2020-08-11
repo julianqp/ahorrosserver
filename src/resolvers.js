@@ -52,6 +52,18 @@ const resolvers = {
 
       return finanzas;
     },
+    obtenerFinanazasMes: async (_, { mes }, ctx) => {
+      // Comprobamos si las credenciales son válidas
+      if (!ctx.usuario) {
+        throw new Error("Faltan credenciales usuario.");
+      }
+      // Buscamos las finanzas del usuario
+      const finanzas = await Finanza.find({
+        usuario: ctx.usuario.id.toString(),
+      });
+
+      return finanzas;
+    },
   },
   Mutation: {
     nuevoUsuario: async (_, { input }) => {

@@ -24,15 +24,18 @@ const FinanzaModel = mongoose.Schema({
     required: true,
   },
   inicio: {
-    type: String,
+    type: Date,
   },
   fin: {
-    type: String,
+    type: Date,
   },
   usuario: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
     ref: "Usuario",
+  },
+  fecha: {
+    type: Date,
   },
   creado: {
     type: Date,

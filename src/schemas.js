@@ -20,6 +20,7 @@ const typeDefs = gql`
     inicio: String
     fin: String
     usuario: ID
+    fecha: String
     creado: String
   }
 
@@ -43,6 +44,7 @@ const typeDefs = gql`
     isMensual: Boolean!
     inicio: String
     fin: String
+    fecha: String
   }
 
   enum TipoFianza {
@@ -60,6 +62,8 @@ const typeDefs = gql`
     obtenerFianza(id: ID!): Finanza
     # Obtener finanzas de un usuario
     obtenerFinanazasUsuario: [Finanza]
+    # Obtener finanzas de un usuario por mes
+    obtenerFinanazasMes(mes: Int!): [Finanza]
   }
   type Mutation {
     ## USUARIO
