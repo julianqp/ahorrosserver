@@ -61,9 +61,9 @@ const typeDefs = gql`
     # Obtención de una finanza
     obtenerFianza(id: ID!): Finanza
     # Obtener finanzas de un usuario
-    obtenerFinanazasUsuario: [Finanza]
+    obtenerFinanzasUsuario: [Finanza]
     # Obtener finanzas de un usuario por mes
-    obtenerFinanazasMes(mes: Int!): [Finanza]
+    obtenerFinanzasMes(mes: Int!): [Finanza]
   }
   type Mutation {
     ## USUARIO
@@ -79,6 +79,9 @@ const typeDefs = gql`
     editarFinanza(id: ID!, input: FinanzaInput!): Finanza
     # Eliminar finanza
     eliminarFinanza(id: ID!): String
+
+    # Actulizar info Perfil
+    actulizarInfoUser(clave: String!): Boolean
   }
 `;
 

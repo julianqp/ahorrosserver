@@ -14,6 +14,21 @@ const crearToken = (usuario, secreta, expiresIn) => {
   return jwt.sign({ id, email, nombre, apellido }, secreta, { expiresIn });
 };
 
+const funReducer = (acc, curr) => {
+  let date = new Date();
+  let result;
+  if (
+    curr.isMensual &&
+    curr.fecha <= date &&
+    curr.inicio < date &&
+    (curr.fin === null || date < curr.fin)
+  ) {
+  } else {
+    result = acc + curr.cantidad;
+  }
+  return cantidad;
+};
+
 const resolvers = {
   Query: {
     obtenerUsuario: async (_, {}, ctx) => {
@@ -40,7 +55,7 @@ const resolvers = {
       }
       return finanza;
     },
-    obtenerFinanazasUsuario: async (_, {}, ctx) => {
+    obtenerFinanzasUsuario: async (_, {}, ctx) => {
       // Comprobamos si las credenciales son válidas
       if (!ctx.usuario) {
         throw new Error("Faltan credenciales usuario.");
@@ -52,7 +67,7 @@ const resolvers = {
 
       return finanzas;
     },
-    obtenerFinanazasMes: async (_, { mes }, ctx) => {
+    obtenerFinanzasMes: async (_, { mes }, ctx) => {
       // Comprobamos si las credenciales son válidas
       if (!ctx.usuario) {
         throw new Error("Faltan credenciales usuario.");
@@ -143,6 +158,51 @@ const resolvers = {
       }
       await Finanza.findOneAndDelete({ _id: id });
       return "Finanza eliminada.";
+    },
+    actulizarInfoUser: async (_, { clave }) => {
+      if (clave !== process.env.CLAVE) {
+        throw new Error("Clave incorrecta");
+      }
+      const usuarios = await Usuario.find({}, { id: 1 });
+      console.log(usuarios);
+      for await (usuario of usuarios) {
+        const ingresos = await Finanza.find(
+          {
+            usuario: usuario._id,
+            tipo: "INGRESO",
+          },
+          { cantidad: 1, isMensual: 1, fecha: 1, inicio: 1, fin: 1 }
+        );
+        const gastos = await Finanza.find(
+          {
+            usuario: usuario._id,
+            tipo: "GASTO",
+          },
+          { cantidad: 1, isMensual: 1, fecha: 1, inicio: 1, fin: 1 }
+        );
+        let ingreso = ingresos.reduce((acc, cur) => acc + cur.cantidad, 0);
+        let gasto = gastos.reduce((acc, cur) => acc + cur.cantidad, 0);
+        let cantidad = ingreso - gasto;
+        cantidad = Math.round(cantidad * 100) / 100;
+        await Usuario.findOneAndUpdate(
+          { _id: usuario._id },
+          {
+            saldo: cantidad,
+          }
+        );
+      }
+
+      return true;
+    },
+  },
+  Finanza: {
+    inicio: ({ inicio }) => {
+      if (!inicio) return "";
+      return inicio;
+    },
+    fin: ({ fin }) => {
+      if (!fin) return "";
+      return fin;
     },
   },
 };
