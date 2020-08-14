@@ -16,11 +16,22 @@ const typeDefs = gql`
     cantidad: Float
     tipo: TipoFianza
     etiqueta: String
-    isMensual: Boolean
+    usuario: ID
+    fecha: String
+    mensualidad: ID
+    creado: String
+  }
+
+  type Mensualidad {
+    id: ID
+    concepto: String
+    cantidad: Float
+    tipo: TipoFianza
+    etiqueta: String
     inicio: String
     fin: String
     usuario: ID
-    fecha: String
+    dia: Int
     creado: String
   }
 
@@ -41,10 +52,17 @@ const typeDefs = gql`
     cantidad: Float!
     tipo: TipoFianza!
     etiqueta: String!
-    isMensual: Boolean!
-    inicio: String
+    fecha: String!
+  }
+
+  input MensualidadInput {
+    concepto: String!
+    cantidad: Float!
+    tipo: TipoFianza!
+    etiqueta: String!
+    inicio: String!
     fin: String
-    fecha: String
+    dia: Int!
   }
 
   enum TipoFianza {
@@ -64,6 +82,9 @@ const typeDefs = gql`
     obtenerFinanzasUsuario: [Finanza]
     # Obtener finanzas de un usuario por mes
     obtenerFinanzasMes(mes: Int!): [Finanza]
+    ## MENSUALIDAD
+    #Obtener mensualidades de un usuario
+    obtenerMensualidadesUsuario: [Mensualidad]
   }
   type Mutation {
     ## USUARIO
@@ -82,6 +103,14 @@ const typeDefs = gql`
 
     # Actulizar info Perfil
     actulizarInfoUser(clave: String!): Boolean
+
+    ## MENSUALIDAD
+    # Creación de una mensualidad
+    nuevaMensualidad(input: MensualidadInput!): Mensualidad
+    # Editar mensualidad
+    editarMensualidad(id: ID!, input: MensualidadInput!): Mensualidad
+    # Eliminar mensualidad
+    eliminarMensualidad(id: ID!): String
   }
 `;
 
