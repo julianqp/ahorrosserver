@@ -46,6 +46,14 @@ const seleccionMes = (mes) => {
   }
 };
 
+const accCantidadUsuario = async (id, add) => {
+  let { cantidad } = Usuario.findById(id);
+  if (cantidad) {
+    cantidad += add;
+  }
+  await Usuario.findByIdAndUpdate({ _id: id }, { cantidad });
+};
+
 const funReducer = (acc, curr) => {
   let date = new Date();
   let result;
@@ -247,26 +255,26 @@ const resolvers = {
       newMensualidad = await newMensualidad.save();
       let month, year, day;
       let now = new Date();
-      if (input.fin) {
-        [month, year] = input.fin.split("-");
+      month = now.getMonth() + 1;
+      year = now.getFullYear();
+      const condicion = `${month}-${year}`;
+
+      if (input.fin && input.fin < condicion) {
+        [year, month] = input.fin.split("-");
         month = parseInt(month, 10);
         year = parseInt(year, 10);
       } else {
         day = now.getDate();
-        month = now.getMonth() + 1;
-        year = now.getFullYear();
       }
 
-      let [rmes, ranio] = input.inicio.split("-");
+      let [ranio, rmes] = input.inicio.split("-");
 
       ranio = parseInt(ranio, 10);
       rmes = parseInt(rmes, 10);
-
       if (ranio <= year && rmes <= month) {
         const { concepto, dia, etiqueta, tipo, cantidad } = input;
         let cond = ranio * 100 + rmes;
         const cond2 = year * 100 + month;
-
         while (cond < cond2) {
           const mes = seleccionMes(rmes);
           const fecha = new Date(
