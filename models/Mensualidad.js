@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const FinanzaModel = mongoose.Schema({
+const MensualidadModel = mongoose.Schema({
   concepto: {
     type: String,
     required: true,
@@ -23,13 +23,16 @@ const FinanzaModel = mongoose.Schema({
     required: true,
     ref: "Usuario",
   },
-  fecha: {
-    type: Date,
+  dia: {
+    type: Number,
     required: true,
   },
-  mensualidad: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Mensualidad",
+  inicio: {
+    type: String,
+    required: true,
+  },
+  fin: {
+    type: String,
   },
   creado: {
     type: Date,
@@ -37,4 +40,4 @@ const FinanzaModel = mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model("Finanza", FinanzaModel);
+module.exports = mongoose.model("Mensualidad", MensualidadModel);

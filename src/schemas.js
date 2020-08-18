@@ -16,11 +16,22 @@ const typeDefs = gql`
     cantidad: Float
     tipo: TipoFianza
     etiqueta: String
-    isMensual: Boolean
+    usuario: ID
+    fecha: String
+    mensualidad: ID
+    creado: String
+  }
+
+  type Mensualidad {
+    id: ID
+    concepto: String
+    cantidad: Float
+    tipo: TipoFianza
+    etiqueta: String
     inicio: String
     fin: String
     usuario: ID
-    fecha: String
+    dia: Int
     creado: String
   }
 
@@ -41,10 +52,17 @@ const typeDefs = gql`
     cantidad: Float!
     tipo: TipoFianza!
     etiqueta: String!
-    isMensual: Boolean!
-    inicio: String
+    fecha: String!
+  }
+
+  input MensualidadInput {
+    concepto: String!
+    cantidad: Float!
+    tipo: TipoFianza!
+    etiqueta: String!
+    inicio: String!
     fin: String
-    fecha: String
+    dia: Int!
   }
 
   enum TipoFianza {
@@ -82,6 +100,8 @@ const typeDefs = gql`
 
     # Actulizar info Perfil
     actulizarInfoUser(clave: String!): Boolean
+    # Pruebas cantidad
+    cantidades(c1: Int, c2: Int): Int
   }
 `;
 

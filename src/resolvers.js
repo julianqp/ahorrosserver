@@ -1,17 +1,59 @@
 // Importamos los modelos
 const Usuario = require("../models/Usuario");
 const Finanza = require("../models/Finanza");
+const Mensualidad = require("../models/Mensualidad");
 
 // importamos las librerias necesarias
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { introspectSchema } = require("apollo-server");
 require("dotenv").config({ path: "variables.env" });
 
 // Funcion que crea un token de autenticacion
 const crearToken = (usuario, secreta, expiresIn) => {
   const { id, email, nombre, apellido } = usuario;
+  if (expiresIn) {
+    return jwt.sign({ id, email, nombre, apellido }, secreta, { expiresIn });
+  }
+  return jwt.sign({ id, email, nombre, apellido }, secreta);
+};
 
-  return jwt.sign({ id, email, nombre, apellido }, secreta, { expiresIn });
+const seleccionMes = (mes) => {
+  switch (mes) {
+    case 1:
+      return "Enero";
+    case 2:
+      return "Febrero";
+    case 3:
+      return "Marzo";
+    case 4:
+      return "Abril";
+    case 5:
+      return "Mayo";
+    case 6:
+      return "Junio";
+    case 7:
+      return "Julio";
+    case 8:
+      return "Agosto";
+    case 9:
+      return "Septiembre";
+    case 10:
+      return "Octubre";
+    case 11:
+      return "Noviembre";
+    case 12:
+      return "Diciembre";
+    default:
+      return null;
+  }
+};
+
+const accCantidadUsuario = async (id, add) => {
+  let user = await Usuario.findById(id);
+  let saldo = user.saldo || 0;
+  saldo += add;
+  await Usuario.findByIdAndUpdate({ _id: id }, { saldo: saldo });
 };
 
 const funReducer = (acc, curr) => {
@@ -117,7 +159,7 @@ const resolvers = {
         throw new Error("La contraseña es incorrecta");
       }
       // Creamos un nuevo token para el usuario
-      const token = crearToken(existeUsuario, process.env.SECRETA, "24h");
+      const token = crearToken(existeUsuario, process.env.SECRETA);
       return { token };
     },
     nuevaFinanza: async (_, { input }, ctx) => {
@@ -128,6 +170,11 @@ const resolvers = {
       let newFinanza = new Finanza(input);
       newFinanza.usuario = ctx.usuario.id;
       newFinanza = await newFinanza.save();
+
+      let { cantidad } = newFinanza;
+      if (newFinanza.tipo === "GASTO") cantidad = cantidad * -1;
+
+      accCantidadUsuario(ctx.usuario.id, cantidad);
 
       return newFinanza;
     },
@@ -140,6 +187,26 @@ const resolvers = {
       if (finanza.usuario.toString() !== ctx.usuario.id) {
         throw new Error("Credenciales incorrectas para la finanza.");
       }
+      // Cálculo de la cantidad restante
+      const cantidadAntigua =
+        finanza.tipo === "GASTO" ? finanza.cantidad * -1 : finanza.cantidad;
+      const cantidadNueva =
+        input.tipo === "GASTO" ? input.cantidad * -1 : input.cantidad;
+
+      if (cantidadAntigua !== cantidadNueva) {
+        let cantidad;
+        if (cantidadAntigua >= 0 && cantidadNueva >= 0) {
+          cantidad = cantidadNueva - cantidadAntigua;
+        } else if (cantidadAntigua <= 0 && cantidadNueva <= 0) {
+          cantidad = cantidadNueva - cantidadAntigua;
+        } else if (cantidadAntigua <= 0 && cantidadNueva >= 0) {
+          cantidad = cantidadNueva - cantidadAntigua;
+        } else if (cantidadAntigua >= 0 && cantidadNueva <= 0) {
+          cantidad = cantidadNueva - cantidadAntigua;
+        }
+        await accCantidadUsuario(ctx.usuario.id, cantidad);
+      }
+
       // Actualizamos las finanzas con los nuevos datos
       finanza = await Finanza.findByIdAndUpdate({ _id: id }, input, {
         new: true,
@@ -156,8 +223,30 @@ const resolvers = {
       if (finanza.usuario.toString() !== ctx.usuario.id) {
         throw new Error("Credenciales incorrectas para la finanza.");
       }
+      // Modificamos la cantidad del usuario al haber eliminado la Finanza
+      // Si fue un gasto positivo, si fue un ingreso negativo
+      let cantidad =
+        finanza.tipo === "GASTO" ? finanza.cantidad : finanza.cantidad * -1;
+      await accCantidadUsuario(ctx.usuario.id, cantidad);
+
       await Finanza.findOneAndDelete({ _id: id });
       return "Finanza eliminada.";
+    },
+    cantidades: async (_, { c1, c2 }) => {
+      if (c1 !== c2) {
+        let cantidad;
+        if (c1 >= 0 && c2 >= 0) {
+          cantidad = c2 - c1;
+        } else if (c1 <= 0 && c2 <= 0) {
+          cantidad = c2 - c1;
+        } else if (c1 <= 0 && c2 >= 0) {
+          cantidad = c2 - c1;
+        } else if (c1 >= 0 && c2 <= 0) {
+          cantidad = c2 - c1;
+        }
+        return cantidad;
+      }
+      return 0;
     },
     actulizarInfoUser: async (_, { clave }) => {
       if (clave !== process.env.CLAVE) {
@@ -195,16 +284,7 @@ const resolvers = {
       return true;
     },
   },
-  Finanza: {
-    inicio: ({ inicio }) => {
-      if (!inicio) return "";
-      return inicio;
-    },
-    fin: ({ fin }) => {
-      if (!fin) return "";
-      return fin;
-    },
-  },
+  Finanza: {},
 };
 
 module.exports = resolvers;
