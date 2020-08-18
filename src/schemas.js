@@ -82,9 +82,6 @@ const typeDefs = gql`
     obtenerFinanzasUsuario: [Finanza]
     # Obtener finanzas de un usuario por mes
     obtenerFinanzasMes(mes: Int!): [Finanza]
-    ## MENSUALIDAD
-    #Obtener mensualidades de un usuario
-    obtenerMensualidadesUsuario: [Mensualidad]
   }
   type Mutation {
     ## USUARIO
@@ -103,14 +100,8 @@ const typeDefs = gql`
 
     # Actulizar info Perfil
     actulizarInfoUser(clave: String!): Boolean
-
-    ## MENSUALIDAD
-    # Creación de una mensualidad
-    nuevaMensualidad(input: MensualidadInput!): Mensualidad
-    # Editar mensualidad
-    editarMensualidad(id: ID!, input: MensualidadInput!): Mensualidad
-    # Eliminar mensualidad
-    eliminarMensualidad(id: ID!): String
+    # Pruebas cantidad
+    cantidades(c1: Int, c2: Int): Int
   }
 `;
 

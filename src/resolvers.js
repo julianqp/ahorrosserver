@@ -6,13 +6,16 @@ const Mensualidad = require("../models/Mensualidad");
 // importamos las librerias necesarias
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { introspectSchema } = require("apollo-server");
 require("dotenv").config({ path: "variables.env" });
 
 // Funcion que crea un token de autenticacion
 const crearToken = (usuario, secreta, expiresIn) => {
   const { id, email, nombre, apellido } = usuario;
-
-  return jwt.sign({ id, email, nombre, apellido }, secreta, { expiresIn });
+  if (expiresIn) {
+    return jwt.sign({ id, email, nombre, apellido }, secreta, { expiresIn });
+  }
+  return jwt.sign({ id, email, nombre, apellido }, secreta);
 };
 
 const seleccionMes = (mes) => {
@@ -47,11 +50,10 @@ const seleccionMes = (mes) => {
 };
 
 const accCantidadUsuario = async (id, add) => {
-  let { cantidad } = Usuario.findById(id);
-  if (cantidad) {
-    cantidad += add;
-  }
-  await Usuario.findByIdAndUpdate({ _id: id }, { cantidad });
+  let user = await Usuario.findById(id);
+  let saldo = user.saldo || 0;
+  saldo += add;
+  await Usuario.findByIdAndUpdate({ _id: id }, { saldo: saldo });
 };
 
 const funReducer = (acc, curr) => {
@@ -107,18 +109,6 @@ const resolvers = {
 
       return finanzas;
     },
-    obtenerMensualidadesUsuario: async (_, {}, ctx) => {
-      // Comprobamos si las credenciales son válidas
-      if (!ctx.usuario) {
-        throw new Error("Faltan credenciales usuario.");
-      }
-      // Buscamos las mensualidades del usuario
-      const mensualidades = await Mensualidad.find({
-        usuario: ctx.usuario.id.toString(),
-      });
-
-      return mensualidades;
-    },
     obtenerFinanzasMes: async (_, { mes }, ctx) => {
       // Comprobamos si las credenciales son válidas
       if (!ctx.usuario) {
@@ -169,7 +159,7 @@ const resolvers = {
         throw new Error("La contraseña es incorrecta");
       }
       // Creamos un nuevo token para el usuario
-      const token = crearToken(existeUsuario, process.env.SECRETA, "24h");
+      const token = crearToken(existeUsuario, process.env.SECRETA);
       return { token };
     },
     nuevaFinanza: async (_, { input }, ctx) => {
@@ -180,6 +170,11 @@ const resolvers = {
       let newFinanza = new Finanza(input);
       newFinanza.usuario = ctx.usuario.id;
       newFinanza = await newFinanza.save();
+
+      let { cantidad } = newFinanza;
+      if (newFinanza.tipo === "GASTO") cantidad = cantidad * -1;
+
+      accCantidadUsuario(ctx.usuario.id, cantidad);
 
       return newFinanza;
     },
@@ -192,6 +187,26 @@ const resolvers = {
       if (finanza.usuario.toString() !== ctx.usuario.id) {
         throw new Error("Credenciales incorrectas para la finanza.");
       }
+      // Cálculo de la cantidad restante
+      const cantidadAntigua =
+        finanza.tipo === "GASTO" ? finanza.cantidad * -1 : finanza.cantidad;
+      const cantidadNueva =
+        input.tipo === "GASTO" ? input.cantidad * -1 : input.cantidad;
+
+      if (cantidadAntigua !== cantidadNueva) {
+        let cantidad;
+        if (cantidadAntigua >= 0 && cantidadNueva >= 0) {
+          cantidad = cantidadNueva - cantidadAntigua;
+        } else if (cantidadAntigua <= 0 && cantidadNueva <= 0) {
+          cantidad = cantidadNueva - cantidadAntigua;
+        } else if (cantidadAntigua <= 0 && cantidadNueva >= 0) {
+          cantidad = cantidadNueva - cantidadAntigua;
+        } else if (cantidadAntigua >= 0 && cantidadNueva <= 0) {
+          cantidad = cantidadNueva - cantidadAntigua;
+        }
+        await accCantidadUsuario(ctx.usuario.id, cantidad);
+      }
+
       // Actualizamos las finanzas con los nuevos datos
       finanza = await Finanza.findByIdAndUpdate({ _id: id }, input, {
         new: true,
@@ -208,8 +223,30 @@ const resolvers = {
       if (finanza.usuario.toString() !== ctx.usuario.id) {
         throw new Error("Credenciales incorrectas para la finanza.");
       }
+      // Modificamos la cantidad del usuario al haber eliminado la Finanza
+      // Si fue un gasto positivo, si fue un ingreso negativo
+      let cantidad =
+        finanza.tipo === "GASTO" ? finanza.cantidad : finanza.cantidad * -1;
+      await accCantidadUsuario(ctx.usuario.id, cantidad);
+
       await Finanza.findOneAndDelete({ _id: id });
       return "Finanza eliminada.";
+    },
+    cantidades: async (_, { c1, c2 }) => {
+      if (c1 !== c2) {
+        let cantidad;
+        if (c1 >= 0 && c2 >= 0) {
+          cantidad = c2 - c1;
+        } else if (c1 <= 0 && c2 <= 0) {
+          cantidad = c2 - c1;
+        } else if (c1 <= 0 && c2 >= 0) {
+          cantidad = c2 - c1;
+        } else if (c1 >= 0 && c2 <= 0) {
+          cantidad = c2 - c1;
+        }
+        return cantidad;
+      }
+      return 0;
     },
     actulizarInfoUser: async (_, { clave }) => {
       if (clave !== process.env.CLAVE) {
@@ -245,124 +282,6 @@ const resolvers = {
       }
 
       return true;
-    },
-    nuevaMensualidad: async (_, { input }, ctx) => {
-      if (!ctx.usuario) {
-        throw new Error("Credenciales de usuarios incorrectas.");
-      }
-      let newMensualidad = new Mensualidad(input);
-      newMensualidad.usuario = ctx.usuario.id;
-      newMensualidad = await newMensualidad.save();
-      let month, year, day;
-      let now = new Date();
-      month = now.getMonth() + 1;
-      year = now.getFullYear();
-      const condicion = `${month}-${year}`;
-
-      if (input.fin && input.fin < condicion) {
-        [year, month] = input.fin.split("-");
-        month = parseInt(month, 10);
-        year = parseInt(year, 10);
-      } else {
-        day = now.getDate();
-      }
-
-      let [ranio, rmes] = input.inicio.split("-");
-
-      ranio = parseInt(ranio, 10);
-      rmes = parseInt(rmes, 10);
-      if (ranio <= year && rmes <= month) {
-        const { concepto, dia, etiqueta, tipo, cantidad } = input;
-        let cond = ranio * 100 + rmes;
-        const cond2 = year * 100 + month;
-        while (cond < cond2) {
-          const mes = seleccionMes(rmes);
-          const fecha = new Date(
-            ranio,
-            rmes - 1,
-            input.dia
-          ).toLocaleDateString();
-          const finanza = {
-            concepto: `${concepto} ${mes}`,
-            tipo,
-            cantidad,
-            etiqueta,
-            fecha,
-            usuario: ctx.usuario.id,
-          };
-          let newFinanza = new Finanza(finanza);
-          newFinanza = await newFinanza.save();
-
-          if (rmes === 12) {
-            rmes = 1;
-            ranio += 1;
-          } else {
-            rmes += 1;
-          }
-          cond = ranio * 100 + rmes;
-        }
-
-        if (!day) {
-          const mes = seleccionMes(rmes);
-          const fecha = new Date(ranio, rmes - 1, dia).toLocaleDateString();
-          const finanza = {
-            concepto: `${concepto} ${mes}`,
-            tipo,
-            cantidad,
-            etiqueta,
-            fecha,
-            usuario: ctx.usuario.id,
-          };
-          let newFinanza = new Finanza(finanza);
-          newFinanza = await newFinanza.save();
-        } else if (day && dia < day) {
-          const mes = seleccionMes(rmes);
-          const fecha = new Date(
-            ranio,
-            rmes - 1,
-            input.dia
-          ).toLocaleDateString();
-          const finanza = {
-            concepto: `${concepto} ${mes}`,
-            tipo,
-            cantidad,
-            etiqueta,
-            fecha,
-            usuario: ctx.usuario.id,
-          };
-          let newFinanza = new Finanza(finanza);
-          newFinanza = await newFinanza.save();
-        }
-      }
-      return newMensualidad;
-    },
-    editarMensualidad: async (_, { id, input }, ctx) => {
-      // Buscamos la mensualidad
-      let mensualidad = await Mensualidad.findById(id);
-      if (!mensualidad) {
-        throw new Error("Mensualidad no encontrada.");
-      }
-      if (mensualidad.usuario.toString() !== ctx.usuario.id) {
-        throw new Error("Credenciales incorrectas para la mensualidad.");
-      }
-      // Actualizamos las mensualidades con los nuevos datos
-      mensualidad = await Mensualidad.findByIdAndUpdate({ _id: id }, input, {
-        new: true,
-      });
-      return mensualidad;
-    },
-    eliminarMensualidad: async (_, { id }, ctx) => {
-      // Buscamos si la mensualidad existe
-      const mensualidad = await Mensualidad.findById(id);
-      if (!mensualidad) {
-        throw new Error("Mensualidad no encontrada.");
-      }
-      // Comprobamos si el esuario tiene permisos para la mensualidad
-      if (mensualidad.usuario.toString() !== ctx.usuario.id) {
-        throw new Error("Credenciales incorrectas para la mensualidad.");
-      }
-      await Mensualidad.findOneAndDelete({ _id: id });
-      return "Mensualidad eliminada.";
     },
   },
   Finanza: {},
